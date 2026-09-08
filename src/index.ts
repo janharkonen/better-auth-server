@@ -1,20 +1,35 @@
-import { Hono } from 'hono'
-import { auth } from './lib/auth'
-import { logger } from 'hono/logger'
-const app = new Hono()
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { logger } from "hono/logger";
+import { auth, getTrustedOrigins } from "./lib/auth";
 
-app.use(logger())
+const app = new Hono();
 
-app.get('/', (c) => {
-  return c.text('Hello Hono!')
-})
+app.use(logger());
 
-app.get('/health', (c) => {
+app.use(
+  "/api/auth/*",
+  cors({
+    origin: (origin) =>
+      getTrustedOrigins().includes(origin) ? origin : "",
+    allowHeaders: ["Content-Type", "Authorization", "Better-Auth-Cookie"],
+    allowMethods: ["POST", "GET", "OPTIONS"],
+    exposeHeaders: ["Content-Length", "Set-Better-Auth-Cookie"],
+    maxAge: 600,
+    credentials: true,
+  }),
+);
+
+app.get("/", (c) => {
+  return c.text("Hello Hono!");
+});
+
+app.get("/health", (c) => {
   return c.json({
-    status: 'ok',
-    timestamp: new Date().toISOString()
-  })
-})
+    status: "ok",
+    timestamp: new Date().toISOString(),
+  });
+});
 
 /**
  * Better Auth routes, see docs before changing
@@ -23,7 +38,7 @@ app.get('/health', (c) => {
 app.on(["POST", "GET"], "/api/auth/**", (c) => auth.handler(c.req.raw));
 
 export default {
-	port: Number(process.env.PORT) || 3000,
-	hostname: "0.0.0.0",
-	fetch: app.fetch,
-}
+  port: Number(process.env.PORT) || 3000,
+  hostname: "0.0.0.0",
+  fetch: app.fetch,
+};
